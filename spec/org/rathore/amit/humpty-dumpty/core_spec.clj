@@ -1,6 +1,8 @@
 (ns humpty-dumpty-spec
   (:use [clojure.test :only [run-tests deftest is]])
-  (:use org.rathore.amit.humpty-dumpty.core))
+  (:use org.rathore.amit.humpty-dumpty.core)
+  (:use org.rathore.amit.humpty-dumpty.persistence)
+)
 
 (def redis-server-spec {:host "127.0.0.1" :db 8})
 
@@ -51,7 +53,15 @@
     (is (= (count (adi :get :cart-items)) 2))
     (is (= (adi :get :cart-items) (apply list [item-2 item-1])))
     )
-  
+
+  (deftest test-persistable-for
+    (let [persistable (persistable-for adi)]
+      (is (= (persistable "abcdef___14___:cid") "\"abcdef\""))
+      (is (= (persistable "abcdef___14___:merchant-id") "\"14\""))
+      (is (= (persistable "abcdef___14___:session-start-time") (str start-time)))
+      (is (= (persistable "abcdef___14___:url-referrer") "\"google.com\""))
+      (is (= (persistable "abcdef___14___:cart-items") "({:cost 22.4, :sku \"RST\"} {:cost 10.95, :sku \"XYZ\"})"))))
+
 )
 
 

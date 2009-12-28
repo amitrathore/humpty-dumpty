@@ -3,12 +3,10 @@
 
 (ns org.rathore.amit.humpty-dumpty.core
   (:require redis)
-  (use clojure.contrib.str-utils))
+  (use clojure.contrib.str-utils)
+  (use org.rathore.amit.humpty-dumpty.persistence))
 
 (def *redis-server-spec* {})
-
-(defn persist [state separator fornat]
-  )
 
 (defn primary-key-value [humpty-obj]
   (let [pk-keys ((humpty-obj :type) :primary-key)
@@ -34,7 +32,8 @@
 	  (= :get accessor) (let [[k] args]
 			      (state k))
 	  (= :primary-key-value accessor) (primary-key-value thiz)
-	  (= :save! accessor) (persist @state (dumpty :key-separator) (dumpty :format))
+	  (= :save! accessor) (persist thiz)
+	  (= :get-state accessor) @state
 	  :else (throw (RuntimeException. (str "Unknown message " accessor " sent to humpty-dumpty object of type " (dumpty :name)))))))))
 
 (defn new-dumpty [name separator format primary-keys string-attribs set-attribs]

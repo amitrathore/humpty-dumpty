@@ -69,10 +69,19 @@
   (let [ready-to-persist (persistable-for humpty)]
     (insert-into-redis ready-to-persist)))
 
+(defn deserialize-all [serialized dumpty]
+  (let [format (dumpty :format)
+	separator (dumpty :key-separator)
+	key-from (fn [k] (read-string (last (.split k separator))))
+	deserializer (fn [[k {:keys [key-type value]}]]
+		       {(key-from k) (deserialize format key-type value)})
+	state (apply merge (map deserializer serialized))]
+    (dumpty :new-with-state state)))
+
 (defn find-by-primary-key [dumpty pk-values]
   (let [string-keys (dumpty :string-keys pk-values)
 	list-keys (dumpty :list-keys pk-values)
 	string-maps (apply merge (map #((fetchers :string-type) %) string-keys))
 	list-maps (apply merge (map #((fetchers :list-type) %) list-keys))
 	serialized (merge string-maps list-maps)]
-    (println serialized)))
+    (deserialize-all serialized dumpty)))

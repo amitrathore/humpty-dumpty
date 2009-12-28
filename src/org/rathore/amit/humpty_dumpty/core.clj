@@ -34,6 +34,9 @@
 	  (= :primary-key-value accessor) (primary-key-value thiz)
 	  (= :save! accessor) (persist thiz)
 	  (= :get-state accessor) @state
+	  (= :replace-state accessor) (let [[new-state] args] 
+					(dosync
+					  (ref-set state new-state)))
 	  :else (throw (RuntimeException. (str "Unknown message " accessor " sent to humpty-dumpty object of type " (dumpty :name)))))))))
 
 (defn key-type-for [key-name string-types list-types]
@@ -61,6 +64,10 @@
 	(= :list-keys accessor) (let [[values] args]
 				  (keys-for list-attribs separator values))
 	(= :new accessor) (new-humpty dumpty)
+	(= :new-with-state accessor) (let [[new-state] args
+					   nh (new-humpty dumpty)]
+				       (nh :replace-state new-state)
+				       nh)
 	(= :find accessor) (find-by-primary-key dumpty args)
 	:else (throw (RuntimeException. (str "Unknown commmand " accessor " sent to " name)))))))
 

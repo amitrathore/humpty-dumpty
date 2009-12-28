@@ -69,7 +69,7 @@
 
 
   (defn fetch-for-test [key-type key]
-    (((fetchers key-type) key) key))
+    (:value (((fetchers key-type) key) key)))
 
   (deftest test-real-saving
     (redis/flushdb)
@@ -84,8 +84,14 @@
     (redis/flushdb)
     (adi :save!)
     (let [new-adi (consumer :find "abcdef" "14")]
-      (println new-adi)))
-)
+      (is (= (new-adi :get :cid) "abcdef"))
+      (is (= (new-adi :get :merchant-id) "14"))
+      (is (= (new-adi :get :session-start-time) start-time))
+      (is (= (new-adi :get :url-referrer) "google.com"))
+      (is (= (count (new-adi :get :cart-items)) 2))
+      (is (= (new-adi :get :cart-items) (apply list [item-2 item-1])))))
+
+) ;; outer binding form
 
 
 (defn run-humpty-dumpty-tests []

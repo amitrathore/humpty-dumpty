@@ -2,9 +2,19 @@
 ;; a dumpty is the blue-print for a humpty
 
 (ns org.rathore.amit.humpty-dumpty.core
-  (:require redis))
+  (:require redis)
+  (use clojure.contrib.str-utils))
 
 (def *redis-server-spec* {})
+
+(defn persist [state separator fornat]
+  )
+
+(defn primary-key-value [humpty-obj]
+  (let [pk-keys ((humpty-obj :type) :primary-key)
+	separator ((humpty-obj :type) :key-separator)
+	values (map #(humpty-obj :get %) pk-keys)]
+    (str-join separator values)))
 
 (defn new-humpty [dumpty]
   (let [state (ref {})]
@@ -23,14 +33,18 @@
 				(alter state add-to-inner-list k v)))
 	  (= :get accessor) (let [[k] args]
 			      (state k))
+	  (= :primary-key-value accessor) (primary-key-value thiz)
+	  (= :save! accessor) (persist @state (dumpty :key-separator) (dumpty :format))
 	  :else (throw (RuntimeException. (str "Unknown message " accessor " sent to humpty-dumpty object of type " (dumpty :name)))))))))
 
-(defn new-dumpty [name format string-attribs set-attribs]
+(defn new-dumpty [name separator format primary-keys string-attribs set-attribs]
   (fn dumpty [accessor & args]
     (redis/with-server *redis-server-spec*
       (cond
 	(= :name accessor) name
 	(= :format accessor) format
+	(= :key-separator accessor) separator
+	(= :primary-key accessor) primary-keys
 	(= :new accessor) (new-humpty dumpty)
 	:else (throw (RuntimeException. (str "Unknown commmand " accessor " sent to " name)))))))
 
@@ -42,6 +56,8 @@
 (defmacro defdumpty [name & specs]
   (let [string-types (specs-for 'string-type specs)
 	list-types (specs-for 'list-type specs)
-	format (or (first (specs-for 'format-type specs)) :clj-str)]
+	pk-keys (specs-for 'primary-key specs)
+	format (or (first (specs-for 'format-type specs)) :clj-str)
+	separator (or (first (specs-for 'key-separator specs)) "___")]
     `(def ~name 
-	  (new-dumpty '~name '~format '~string-types '~list-types))))
+	  (new-dumpty '~name ~separator ~format '~pk-keys '~string-types '~list-types))))

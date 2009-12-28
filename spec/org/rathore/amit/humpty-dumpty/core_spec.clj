@@ -8,14 +8,15 @@
 
   (defdumpty consumer
     (string-type :cid :merchant-id :session-start-time :url-referrer)
-    (list-type :cart-items))
+    (list-type :cart-items)
+    (primary-key :cid :merchant-id))
   
   (defdumpty consumer-json
     (format-type :json)
+    (key-separator "***")
     (string-type :cid :merchant-id :session-start-time :url-referrer)
     (list-type :cart-items))
   
-
   (def adi (consumer :new))
   
   (adi :set! :cid "abcdef")
@@ -28,16 +29,21 @@
   (adi :add! :cart-items item-1)
   (adi :add! :cart-items item-2)
 
-  (deftest test-format-spec
-    (is (= (consumer-json :format) :json)))
+  (adi :save!)
+
+  (deftest test-override-spec
+    (is (= (consumer-json :format) :json))
+    (is (= (consumer-json :key-separator) "***")))
 
   (deftest test-dumpty-definition
     (is (ifn? consumer))
     (is (= (consumer :format) :clj-str))
-    (is (= (consumer :name) 'consumer)))
+    (is (= (consumer :name) 'consumer))
+    (is (= (consumer :primary-key) '(:cid :merchant-id))))
   
   (deftest test-consumer-object
     (is (= (adi :type) consumer))
+    (is (= (adi :primary-key-value) "abcdef___14"))
     (is (= (adi :get :cid) "abcdef"))
     (is (= (adi :get :merchant-id) "14"))
     (is (= (adi :get :session-start-time) start-time))

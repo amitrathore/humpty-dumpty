@@ -31,8 +31,6 @@
   (adi :add! :cart-items item-1)
   (adi :add! :cart-items item-2)
 
-  (adi :save!)
-
   (deftest test-override-spec
     (is (= (consumer-json :format) :json))
     (is (= (consumer-json :key-separator) "***")))
@@ -43,7 +41,9 @@
     (is (= (consumer :name) 'consumer))
     (is (= (consumer :key-type :cid) :string-type))
     (is (= (consumer :key-type :cart-items) :list-type))
-    (is (= (consumer :primary-key) '(:cid :merchant-id))))
+    (is (= (consumer :primary-key) '(:cid :merchant-id)))
+    (is (= (consumer :string-keys ["abcdef" "14"]) '("abcdef___14___:cid" "abcdef___14___:merchant-id" "abcdef___14___:session-start-time" "abcdef___14___:url-referrer")))
+    (is (= (consumer :list-keys ["abcdef" "14"]) '("abcdef___14___:cart-items"))))
   
   (deftest test-consumer-object
     (is (= (adi :type) consumer))
@@ -67,7 +67,26 @@
       (is (= (:key-type (persistable "abcdef___14___:cart-items")) :list-type))
       (is (= (:value (persistable "abcdef___14___:cart-items")) '("{:cost 22.4, :sku \"RST\"}" "{:cost 10.95, :sku \"XYZ\"}")))))
 
+
+  (defn fetch-for-test [key-type key]
+    (((fetchers key-type) key) key))
+
+  (deftest test-real-saving
+    (redis/flushdb)
+    (adi :save!)
+    (is (= (fetch-for-test :string-type "abcdef___14___:cid") "\"abcdef\""))
+    (is (= (fetch-for-test :string-type "abcdef___14___:merchant-id") "\"14\""))
+    (is (= (fetch-for-test :string-type "abcdef___14___:url-referrer") "\"google.com\""))
+    (is (= (fetch-for-test :string-type "abcdef___14___:session-start-time") (str start-time)))
+    (is (= (fetch-for-test :list-type "abcdef___14___:cart-items") ["{:cost 22.4, :sku \"RST\"}" "{:cost 10.95, :sku \"XYZ\"}"])))
+
+  (deftest test-real-thawing
+    (redis/flushdb)
+    (adi :save!)
+    (let [new-adi (consumer :find "abcdef" "14")]
+      (println new-adi)))
 )
 
 
- 
+(defn run-humpty-dumpty-tests []
+  (redis/with-server redis-server-spec (run-tests))) 

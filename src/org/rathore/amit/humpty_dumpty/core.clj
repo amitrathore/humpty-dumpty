@@ -42,6 +42,10 @@
     (if (some #(= % key-name) list-types)
       :list-type)))
 
+(defn keys-for [keys separator values]
+  (let [pk-value (str-join separator values)]
+    (map #(str pk-value separator %) keys)))
+
 (defn new-dumpty [name separator format primary-keys string-attribs list-attribs]
   (fn dumpty [accessor & args]
     (redis/with-server *redis-server-spec*
@@ -52,7 +56,12 @@
 	(= :primary-key accessor) primary-keys
 	(= :key-type accessor) (let [[k] args]
 				 (key-type-for k string-attribs list-attribs))
+	(= :string-keys accessor) (let [[values] args] 
+				    (keys-for string-attribs separator values))
+	(= :list-keys accessor) (let [[values] args]
+				  (keys-for list-attribs separator values))
 	(= :new accessor) (new-humpty dumpty)
+	(= :find accessor) (find-by-primary-key dumpty args)
 	:else (throw (RuntimeException. (str "Unknown commmand " accessor " sent to " name)))))))
 
 (defn specs-for [redis-datatype specs]

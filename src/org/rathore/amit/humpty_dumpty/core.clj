@@ -36,7 +36,13 @@
 	  (= :get-state accessor) @state
 	  :else (throw (RuntimeException. (str "Unknown message " accessor " sent to humpty-dumpty object of type " (dumpty :name)))))))))
 
-(defn new-dumpty [name separator format primary-keys string-attribs set-attribs]
+(defn key-type-for [key-name string-types list-types]
+  (if (some #(= % key-name) string-types) 
+    :string-type
+    (if (some #(= % key-name) list-types)
+      :list-type)))
+
+(defn new-dumpty [name separator format primary-keys string-attribs list-attribs]
   (fn dumpty [accessor & args]
     (redis/with-server *redis-server-spec*
       (cond
@@ -44,6 +50,8 @@
 	(= :format accessor) format
 	(= :key-separator accessor) separator
 	(= :primary-key accessor) primary-keys
+	(= :key-type accessor) (let [[k] args]
+				 (key-type-for k string-attribs list-attribs))
 	(= :new accessor) (new-humpty dumpty)
 	:else (throw (RuntimeException. (str "Unknown commmand " accessor " sent to " name)))))))
 

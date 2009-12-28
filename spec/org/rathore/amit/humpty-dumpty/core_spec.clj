@@ -41,6 +41,8 @@
     (is (ifn? consumer))
     (is (= (consumer :format) :clj-str))
     (is (= (consumer :name) 'consumer))
+    (is (= (consumer :key-type :cid) :string-type))
+    (is (= (consumer :key-type :cart-items) :list-type))
     (is (= (consumer :primary-key) '(:cid :merchant-id))))
   
   (deftest test-consumer-object
@@ -56,12 +58,16 @@
 
   (deftest test-persistable-for
     (let [persistable (persistable-for adi)]
-      (is (= (persistable "abcdef___14___:cid") "\"abcdef\""))
-      (is (= (persistable "abcdef___14___:merchant-id") "\"14\""))
-      (is (= (persistable "abcdef___14___:session-start-time") (str start-time)))
-      (is (= (persistable "abcdef___14___:url-referrer") "\"google.com\""))
-      (is (= (persistable "abcdef___14___:cart-items") "({:cost 22.4, :sku \"RST\"} {:cost 10.95, :sku \"XYZ\"})"))))
+      (is (= (:key-type (persistable "abcdef___14___:cid")) :string-type))
+      (is (= (:value (persistable "abcdef___14___:cid")) "\"abcdef\""))
+      (is (= (:value (persistable "abcdef___14___:merchant-id")) "\"14\""))
+      (is (= (:value (persistable "abcdef___14___:session-start-time")) (str start-time)))
+      (is (= (:value (persistable "abcdef___14___:url-referrer")) "\"google.com\""))
+
+      (is (= (:key-type (persistable "abcdef___14___:cart-items")) :list-type))
+      (is (= (:value (persistable "abcdef___14___:cart-items")) '("{:cost 22.4, :sku \"RST\"}" "{:cost 10.95, :sku \"XYZ\"}")))))
 
 )
 
 
+ 

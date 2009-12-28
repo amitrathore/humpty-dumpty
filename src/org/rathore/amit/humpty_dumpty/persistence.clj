@@ -1,15 +1,38 @@
 (ns org.rathore.amit.humpty-dumpty.persistence
   (require (org.danlarkin [json :as json])))
 
-(defn serialize [format value]
-  (cond 
-    (= format :json) (json/encode-to-str value)
-    (= format :clj-str) (pr-str value)))
+;; serialization
+(defmulti serialize (fn [format key-type value]
+		      [format key-type]))
 
-(defn deserialize [format serialized]
-  (cond 
-    (= format :json) (json/decode-from-str serialized)
-    (= format :clj-str) (read-string serialized)))
+(defmethod serialize [:json :string-type] [format key-type value]
+  (json/encode-to-str value))
+
+(defmethod serialize [:json :list-type] [format key-type value]
+  (map json/encode-to-str value))
+
+(defmethod serialize [:clj-str :string-type] [format key-type value]
+  (pr-str value))
+
+(defmethod serialize [:clj-str :list-type] [format key-type value]
+  (map pr-str value))
+
+
+;; deserialization
+(defmulti deserialize (fn [format key-type serialized]
+			[format key-type]))
+
+(defmethod deserialize [:json :string-type] [format key-type serialized]
+  (json/decode-from-str serialized))
+
+(defmethod deserialize [:json :list-type] [format key-type serialized]
+  (map json/decode-from-str serialized))
+
+(defmethod deserialize [:clj-str :string-type] [format key-type serialized]
+  (read-string serialized))
+
+(defmethod deserialize [:clj-str :list-type] [format key-type serialized]
+  (map read-string serialized))
 
 (defn insert-into-redis [state]
 )
@@ -20,7 +43,10 @@
 	format (dumpty :format)
 	pk-value (humpty :primary-key-value)
 	kv-persister (fn [[k v]]
-		       {(str pk-value separator k) (serialize format v)})]
+		       (let [key-type (dumpty :key-type k)]
+			 {(str pk-value separator k) 
+			  {:value (serialize format key-type v)
+			   :key-type key-type}}))]
     (apply merge (map kv-persister (humpty :get-state)))))
 
 (defn persist [humpty]

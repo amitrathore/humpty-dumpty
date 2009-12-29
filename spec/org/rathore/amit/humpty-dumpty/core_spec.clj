@@ -91,6 +91,11 @@
       (is (= (count (new-adi :get :cart-items)) 2))
       (is (= (new-adi :get :cart-items) (apply list [item-2 item-1])))))
 
+  (deftest test-finding-nothing
+    (let [new-adi (consumer :find "blah" "deblah")]
+      (is (nil? new-adi))))
+
+
 ) ;; outer binding form
 
 

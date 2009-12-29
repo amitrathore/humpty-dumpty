@@ -6,7 +6,7 @@
   (use clojure.contrib.str-utils)
   (use org.rathore.amit.humpty-dumpty.persistence))
 
-(def *redis-server-spec* {})
+(def *redis-server-spec*)
 
 (defn primary-key-value [humpty-obj]
   (let [pk-keys ((humpty-obj :type) :primary-key)
@@ -21,6 +21,7 @@
 	(cond
 	  (= :type accessor) dumpty
 	  (= :set! accessor) (let [[k v] args] 
+			       (dumpty :valid-key? k)
 			       (dosync
 				(alter state assoc k v))
 			       v)
@@ -49,6 +50,12 @@
   (let [pk-value (str-join separator values)]
     (map #(str pk-value separator %) keys)))
 
+(defn check-key-validity [key dumpty string-attribs list-attribs]
+  (if-not (some #(= % key) string-attribs)
+    (if-not (some #(= % key) list-attribs)
+      (throw (RuntimeException. (str "Attempt to use unknown key " key " in object of humpty type " (dumpty :name))))))
+  true)
+
 (defn new-dumpty [name separator format primary-keys string-attribs list-attribs]
   (fn dumpty [accessor & args]
     (redis/with-server *redis-server-spec*
@@ -59,6 +66,8 @@
 	(= :primary-key accessor) primary-keys
 	(= :key-type accessor) (let [[k] args]
 				 (key-type-for k string-attribs list-attribs))
+	(= :valid-key? accessor) (let [[key] args]
+				   (check-key-validity key dumpty string-attribs list-attribs))
 	(= :string-keys accessor) (let [[values] args] 
 				    (keys-for string-attribs separator values))
 	(= :list-keys accessor) (let [[values] args]

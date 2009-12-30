@@ -81,7 +81,9 @@
     (is (= (fetch-for-test :string-type "abcdef___14___:merchant-id") "\"14\""))
     (is (= (fetch-for-test :string-type "abcdef___14___:url-referrer") "\"google.com\""))
     (is (= (fetch-for-test :string-type "abcdef___14___:session-start-time") (str start-time)))
-    (is (= (fetch-for-test :list-type "abcdef___14___:cart-items") ["{:cost 22.4, :sku \"RST\"}" "{:cost 10.95, :sku \"XYZ\"}"])))
+    (is (= (fetch-for-test :list-type "abcdef___14___:cart-items") ["{:cost 22.4, :sku \"RST\"}" "{:cost 10.95, :sku \"XYZ\"}"]))
+    (is (consumer :exists? "abcdef" "14"))
+    (is (consumer :attrib-exists? :session-start-time "abcdef" "14")))
 
   (deftest test-real-thawing
     (redis/flushdb)

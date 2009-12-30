@@ -31,6 +31,7 @@
 		  (dosync
 		   (alter state add-to-inner-list k v)))
 	  :get (let [[k] args]
+		 (dumpty :valid-key? k)
 		 (state k))
 	  :primary-key-value (primary-key-value thiz)
 	  :save! (persist thiz)

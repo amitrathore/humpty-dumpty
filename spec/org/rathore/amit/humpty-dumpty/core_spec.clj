@@ -57,6 +57,9 @@
     (is (= (adi :get :url-referrer) "google.com"))
     (is (= (count (adi :get :cart-items)) 2))
     (is (= (adi :get :cart-items) (apply list [item-2 item-1])))
+
+    (is (thrown? RuntimeException (adi :set! :blah 123)))
+    (is (thrown? RuntimeException (adi :get :blah 123)))
     )
 
   (deftest test-persistable-for

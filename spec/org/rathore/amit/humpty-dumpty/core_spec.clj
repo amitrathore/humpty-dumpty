@@ -9,7 +9,7 @@
 (binding [*redis-server-spec* redis-server-spec]
 
   (defdumpty consumer
-    (string-type :cid :merchant-id :session-start-time :url-referrer)
+    (string-type :cid :merchant-id :session-start-time :url-referrer :client-time :timezone)
     (list-type :cart-items)
     (primary-key :cid :merchant-id))
   
@@ -26,6 +26,8 @@
   (def start-time (System/currentTimeMillis))
   (adi :set! :session-start-time start-time)
   (adi :set! :url-referrer "google.com")
+  (adi :set-all! {:client-time "1221231222" :timezone "480"})
+  
   (def item-1 {:cost 10.95 :sku "XYZ"})
   (def item-2 {:cost 22.40 :sku "RST"})
   (adi :add! :cart-items item-1)
@@ -45,7 +47,7 @@
     (is (consumer :valid-key? :cart-items))
     (is (thrown? RuntimeException (consumer :valid-key? :another)))
     (is (= (consumer :primary-key) '(:cid :merchant-id)))
-    (is (= (consumer :string-keys ["abcdef" "14"]) '("abcdef___14___:cid" "abcdef___14___:merchant-id" "abcdef___14___:session-start-time" "abcdef___14___:url-referrer")))
+    (is (= (consumer :string-keys ["abcdef" "14"]) '("abcdef___14___:cid" "abcdef___14___:merchant-id" "abcdef___14___:session-start-time" "abcdef___14___:url-referrer" "abcdef___14___:client-time" "abcdef___14___:timezone")))
     (is (= (consumer :list-keys ["abcdef" "14"]) '("abcdef___14___:cart-items"))))
   
   (deftest test-consumer-object
@@ -77,6 +79,12 @@
   (defn fetch-for-test [key-type key]
     (:value (((fetchers key-type) key) key)))
 
+  (deftest test-copying-content
+    (let [anya (consumer :new)]
+      (anya :copy-from-humpty adi :cid :merchant-id)
+      (is (= (adi :get :cid) (anya :get :cid)))
+      (is (= (adi :get :merchant-id) (anya :get :merchant-id)))))
+
   (deftest test-real-saving
     (redis/flushdb)
     (adi :save!)
@@ -84,6 +92,8 @@
     (is (= (fetch-for-test :string-type "abcdef___14___:merchant-id") "\"14\""))
     (is (= (fetch-for-test :string-type "abcdef___14___:url-referrer") "\"google.com\""))
     (is (= (fetch-for-test :string-type "abcdef___14___:session-start-time") (str start-time)))
+    (is (= (fetch-for-test :string-type "abcdef___14___:client-time") "\"1221231222\""))
+    (is (= (fetch-for-test :string-type "abcdef___14___:timezone") "\"480\""))
     (is (= (fetch-for-test :list-type "abcdef___14___:cart-items") ["{:cost 22.4, :sku \"RST\"}" "{:cost 10.95, :sku \"XYZ\"}"]))
     (is (consumer :exists? "abcdef" "14"))
     (is (consumer :attrib-exists? :session-start-time "abcdef" "14")))
@@ -106,6 +116,8 @@
 
 ) ;; outer binding form
 
+;
 
 (defn run-humpty-dumpty-tests []
-  (redis/with-server redis-server-spec (run-tests))) 
+  (binding [*redis-server-spec* redis-server-spec]
+    (redis/with-server redis-server-spec (run-tests)))) 

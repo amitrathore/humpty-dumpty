@@ -119,6 +119,18 @@
     (let [new-adi (consumer :find "blah" "deblah")]
       (is (nil? new-adi))))
 
+  (deftest test-destroy
+    (consumer :destroy "ady" "15")
+    (let [ady (consumer :new)
+          number-keys (count (redis/keys "*"))]
+      (ady :set-all! {:cid "ady" :merchant-id "15" :timezone "420"})
+      (ady :save!)
+      (is (not (nil? (consumer :find "ady" "15"))))
+      (is (= (count (redis/keys "*")) (+ 3 number-keys)))
+      (consumer :destroy "ady" "15")
+      (is (nil? (consumer :find "ady" "15")))
+      (is (= (count (redis/keys "*")) number-keys))))
+
 
 ) ;; outer binding form
 

@@ -1,6 +1,7 @@
 (ns org.rathore.amit.humpty-dumpty.persistence
   (:require redis)
   (:use org.rathore.amit.humpty-dumpty.utils)
+  (:use clojure.contrib.str-utils)
   (:require (org.danlarkin [json :as json])))
 
 ;; serialization
@@ -105,3 +106,9 @@
   (let [pk-value (humpty :primary-key-value)
         now (redis/zscore LAST-ACCESSED-TIMES pk-value)]
     (score-date (str (.longValue now)))))
+
+(defn destroy-by-primary-key [dumpty pk-values]
+  (let [redis-keys-prefix (str-join (dumpty :key-separator) pk-values)
+        keys-for-humpty (redis/keys (str redis-keys-prefix "*"))]
+    (doseq [redis-key keys-for-humpty]
+      (redis/del redis-key))))

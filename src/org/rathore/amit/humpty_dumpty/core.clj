@@ -118,7 +118,9 @@
 
 	:attrib-exists? (let [attrib-key (first args)
 			      pk-value (str-join separator (rest args))]
-			  (redis/exists (str pk-value separator attrib-key)))))))
+			  (redis/exists (str pk-value separator attrib-key)))
+
+        :destroy (destroy-by-primary-key dumpty args)))))
 
 (defn specs-for [redis-datatype specs]
   (let [type-spec? #(= redis-datatype (first %))

@@ -1,5 +1,6 @@
 (ns org.rathore.amit.humpty-dumpty.persistence
   (:require redis)
+  (:use org.rathore.amit.humpty-dumpty.utils)
   (:require (org.danlarkin [json :as json])))
 
 ;; serialization
@@ -65,9 +66,15 @@
 			   :key-type key-type}}))]
     (apply merge (map kv-persister (humpty :get-state)))))
 
+(defn validate-for-persistence [humpty]
+  (if (empty? (humpty :primary-key-value))
+    (throw (RuntimeException. (str (humpty :type-name)) "must have a primary key value for persisting!"))))
+
 (defn persist [humpty]
+  (validate-for-persistence humpty)
   (let [ready-to-persist (persistable-for humpty)]
-    (insert-into-redis ready-to-persist)))
+    (insert-into-redis ready-to-persist))
+  (stamp-update-time humpty))
 
 (defn deserialize-state [serialized dumpty]
   (let [format (dumpty :format)
@@ -89,3 +96,12 @@
     (if (empty? deserialized)
       nil
       (dumpty :new-with-state deserialized))))
+
+(defn stamp-update-time [humpty]
+  (let [pk-value (humpty :primary-key-value)]
+    (redis/zadd LAST-ACCESSED-TIMES (now-score) pk-value)))
+
+(defn get-last-updated [humpty]
+  (let [pk-value (humpty :primary-key-value)
+        now (redis/zscore LAST-ACCESSED-TIMES pk-value)]
+    (score-date (str (.longValue now)))))

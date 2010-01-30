@@ -22,6 +22,8 @@
 
 	  :type dumpty
 
+          :type-name (dumpty :name)
+
 	  :set! (let [[k v] args] 
 		  (dumpty :valid-key? k)
 		  (dosync
@@ -58,7 +60,7 @@
 			   (dosync
 			    (ref-set state new-state)))
 
-	  :else (throw (RuntimeException. (str "Unknown message " accessor " sent to humpty-dumpty object of type " (dumpty :name)))))))))
+          :last-updated (get-last-updated thiz))))))
 
 (defn key-type-for [key-name string-types list-types]
   (if (some #(= % key-name) string-types) 
@@ -116,9 +118,7 @@
 
 	:attrib-exists? (let [attrib-key (first args)
 			      pk-value (str-join separator (rest args))]
-			  (redis/exists (str pk-value separator attrib-key)))
-
-	:else (throw (RuntimeException. (str "Unknown commmand " accessor " sent to " name)))))))
+			  (redis/exists (str pk-value separator attrib-key)))))))
 
 (defn specs-for [redis-datatype specs]
   (let [type-spec? #(= redis-datatype (first %))

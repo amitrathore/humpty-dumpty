@@ -2,7 +2,8 @@
   (:use [clojure.test :only [run-tests deftest is]])
   (:use org.rathore.amit.humpty-dumpty.core)
   (:use org.rathore.amit.humpty-dumpty.persistence)
-)
+  (:use org.rathore.amit.humpty-dumpty.utils)
+  (:use org.rathore.amit.conjure.core))
 
 (def redis-server-spec {:host "127.0.0.1" :db 8})
 
@@ -98,16 +99,21 @@
     (is (consumer :exists? "abcdef" "14"))
     (is (consumer :attrib-exists? :session-start-time "abcdef" "14")))
 
+  (def now-score-string "20100129164026")
+  (def now-score-date (score-date now-score-string))
+
   (deftest test-real-thawing
     (redis/flushdb)
-    (adi :save!)
+    (stubbing [now-score now-score-string]
+      (adi :save!))
     (let [new-adi (consumer :find "abcdef" "14")]
       (is (= (new-adi :get :cid) "abcdef"))
       (is (= (new-adi :get :merchant-id) "14"))
       (is (= (new-adi :get :session-start-time) start-time))
       (is (= (new-adi :get :url-referrer) "google.com"))
       (is (= (count (new-adi :get :cart-items)) 2))
-      (is (= (new-adi :get :cart-items) (apply list [item-2 item-1])))))
+      (is (= (new-adi :get :cart-items) (apply list [item-2 item-1])))
+      (is (= (new-adi :last-updated) now-score-date))))
 
   (deftest test-finding-nothing
     (let [new-adi (consumer :find "blah" "deblah")]

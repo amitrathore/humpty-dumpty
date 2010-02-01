@@ -4,6 +4,8 @@
   (:use clojure.contrib.str-utils)
   (:require (org.danlarkin [json :as json])))
 
+(def LAST-ACCESSED-TIMES "last_accessed_times")
+
 ;; serialization
 (defmulti serialize (fn [format key-type value]
 		      [format key-type]))
@@ -71,6 +73,8 @@
   (if (empty? (humpty :primary-key-value))
     (throw (RuntimeException. (str (humpty :type-name)) "must have a primary key value for persisting!"))))
 
+(declare stamp-update-time)
+
 (defn persist [humpty]
   (validate-for-persistence humpty)
   (let [ready-to-persist (persistable-for humpty)]
@@ -111,4 +115,12 @@
   (let [redis-keys-prefix (str-join (dumpty :key-separator) pk-values)
         keys-for-humpty (redis/keys (str redis-keys-prefix "*"))]
     (doseq [redis-key keys-for-humpty]
-      (redis/del redis-key))))
+      (redis/del redis-key))
+    (redis/zrem LAST-ACCESSED-TIMES redis-keys-prefix)))
+
+(defn expired? [humpty]
+  (let [last-accessed (humpty :last-updated)
+        ttl ((humpty :type) :ttl)
+        expires-at (add-seconds last-accessed ttl)
+        now (score-date (now-score))]
+    (.before expires-at now)))

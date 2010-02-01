@@ -16,7 +16,14 @@
         hour (.get now-greg Calendar/HOUR_OF_DAY)
         minute (.get now-greg Calendar/MINUTE)
         seconds (.get now-greg Calendar/SECOND)]
-    (apply str [year month day hour minute seconds ".0"])))
+    (apply str [year month day hour minute seconds])))
 
 (defn score-date [score]
-  (.parse (SimpleDateFormat. "yyyyMMddkkmmss") score))
+  (let [date (.parse (SimpleDateFormat. "yyyyMMddkkmmss") score)
+        cal (Calendar/getInstance)]
+    (.setTime cal date)
+    cal))
+
+(defn add-seconds [cal seconds]
+  (.add cal Calendar/SECOND seconds)
+  cal)

@@ -60,7 +60,9 @@
 			   (dosync
 			    (ref-set state new-state)))
 
-          :last-updated (get-last-updated thiz))))))
+          :last-updated (get-last-updated thiz)
+
+          :expired? (expired? thiz))))))
 
 (defn key-type-for [key-name string-types list-types]
   (if (some #(= % key-name) string-types) 
@@ -78,7 +80,7 @@
       (throw (RuntimeException. (str "Attempt to use unknown key " key " in object of humpty type " (dumpty :name))))))
   true)
 
-(defn new-dumpty [name separator format primary-keys string-attribs list-attribs]
+(defn new-dumpty [name separator format expires-in primary-keys string-attribs list-attribs]
   (fn dumpty [accessor & args]
     (redis/with-server *redis-server-spec*
       (condp = accessor
@@ -86,6 +88,8 @@
 	:name name
 
 	:format format
+
+        :ttl expires-in
 
 	:key-separator separator
 
@@ -132,6 +136,7 @@
 	list-types (specs-for 'list-type specs)
 	pk-keys (specs-for 'primary-key specs)
 	format (or (first (specs-for 'format-type specs)) :clj-str)
+        expires-in (first (specs-for 'expires-in specs))
 	separator (or (first (specs-for 'key-separator specs)) "___")]
     `(def ~name 
-	  (new-dumpty '~name ~separator ~format '~pk-keys '~string-types '~list-types))))
+	  (new-dumpty '~name ~separator ~format (or ~expires-in 0) '~pk-keys '~string-types '~list-types))))

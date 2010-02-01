@@ -12,7 +12,8 @@
   (defdumpty consumer
     (string-type :cid :merchant-id :session-start-time :url-referrer :client-time :timezone)
     (list-type :cart-items)
-    (primary-key :cid :merchant-id))
+    (primary-key :cid :merchant-id)
+    (expires-in 1800))
   
   (defdumpty consumer-json
     (format-type :json)
@@ -127,15 +128,35 @@
       (ady :save!)
       (is (not (nil? (consumer :find "ady" "15"))))
       (is (= (count (redis/keys "*")) (+ 3 number-keys)))
+      (is (not (nil? (redis/zscore LAST-ACCESSED-TIMES "ady___15"))))
       (consumer :destroy "ady" "15")
       (is (nil? (consumer :find "ady" "15")))
-      (is (= (count (redis/keys "*")) number-keys))))
+      (is (= (count (redis/keys "*")) number-keys))
+      (is (nil? (redis/zscore LAST-ACCESSED-TIMES "ady___15")))))
+
+  (deftest test-expiration-true
+    (let [ady (consumer :new)]
+      (ady :set-all! {:cid "ady" :merchant-id "15" :timezone "420"})
+      (stubbing [now-score now-score-string]
+        (ady :save!))
+      (is (ady :expired?))))
+
+  (deftest test-expiration-false
+    (let [ady (consumer :new)]
+      (ady :set-all! {:cid "ady" :merchant-id "15" :timezone "420"})
+      (ady :save!)
+      (is (not (ady :expired?)))))
 
 
 ) ;; outer binding form
 
 ;
 
-(defn run-humpty-dumpty-tests []
-  (binding [*redis-server-spec* redis-server-spec]
-    (redis/with-server redis-server-spec (run-tests)))) 
+(defn run-humpty-dumpty-tests 
+  ([]
+     (binding [*redis-server-spec* redis-server-spec]
+       (redis/with-server redis-server-spec (run-tests))))
+  ([test-fn]
+     (binding [*redis-server-spec* redis-server-spec]
+       (redis/with-server redis-server-spec (test-fn))))) 
+

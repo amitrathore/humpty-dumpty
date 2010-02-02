@@ -106,10 +106,13 @@
   (let [pk-value (humpty :primary-key-value)]
     (redis/zadd LAST-ACCESSED-TIMES (now-score) pk-value)))
 
-(defn get-last-updated [humpty]
-  (let [pk-value (humpty :primary-key-value)
-        now (redis/zscore LAST-ACCESSED-TIMES pk-value)]
+(defn- last-accessed-time-as-date [pk-value]
+  (if-let [now (redis/zscore LAST-ACCESSED-TIMES pk-value)]
     (score-date (str (.longValue now)))))
+
+(defn get-last-updated [humpty]
+  (let [pk-value (humpty :primary-key-value)]
+    (last-accessed-time-as-date pk-value)))
 
 (defn destroy-by-primary-key [dumpty pk-values]
   (let [redis-keys-prefix (str-join (dumpty :key-separator) pk-values)
@@ -118,9 +121,17 @@
       (redis/del redis-key))
     (redis/zrem LAST-ACCESSED-TIMES redis-keys-prefix)))
 
-(defn expired? [humpty]
-  (let [last-accessed (humpty :last-updated)
-        ttl ((humpty :type) :ttl)
-        expires-at (add-seconds last-accessed ttl)
+(defn- check-expiry [last-accessed ttl]
+  (let [expires-at (add-seconds last-accessed ttl)
         now (score-date (now-score))]
     (.before expires-at now)))
+
+(defn humpty-expired? [humpty]
+  (let [last-accessed (humpty :last-updated)
+        ttl ((humpty :type) :ttl)]
+    (check-expiry last-accessed ttl)))
+
+(defn dumpty-expired? [dumpty pk-values]
+  (let [pk-value (str-join (dumpty :key-separator) pk-values)]
+    (if-let [last-accessed (last-accessed-time-as-date pk-value)]
+      (check-expiry last-accessed (dumpty :ttl)))))

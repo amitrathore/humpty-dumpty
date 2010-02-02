@@ -62,7 +62,7 @@
 
           :last-updated (get-last-updated thiz)
 
-          :expired? (expired? thiz))))))
+          :expired? (humpty-expired? thiz))))))
 
 (defn key-type-for [key-name string-types list-types]
   (if (some #(= % key-name) string-types) 
@@ -117,8 +117,10 @@
 	:find (find-by-primary-key dumpty args)
 
 	:exists? (let [key-value (str-join separator args)
-		      key-value (str key-value separator (first primary-keys))]
+                       key-value (str key-value separator (first primary-keys))]
 		  (redis/exists key-value))
+
+        :expired? (dumpty-expired? dumpty args)
 
 	:attrib-exists? (let [attrib-key (first args)
 			      pk-value (str-join separator (rest args))]

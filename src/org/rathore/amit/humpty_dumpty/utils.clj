@@ -2,21 +2,29 @@
   (:import (java.util Calendar GregorianCalendar)
            (java.text SimpleDateFormat)))
 
-(defn month-str [greg]
-  (let [val (str (inc (.get greg Calendar/MONTH)))]
-    (if (= 1 (count val))
-      (str "0" val)
-      val)))
+(defn padded-str [val]
+  (let [val-str (str val)]
+    (if (= 1 (count val-str))
+      (str "0" val-str)
+      val-str)))
 
-(defn now-score []
-  (let [now-greg (GregorianCalendar.)
-        year (.get now-greg Calendar/YEAR)
-        month (month-str now-greg)
-        day (.get now-greg Calendar/DATE)
-        hour (.get now-greg Calendar/HOUR_OF_DAY)
-        minute (.get now-greg Calendar/MINUTE)
-        seconds (.get now-greg Calendar/SECOND)]
-    (apply str [year month day hour minute seconds])))
+(defn month-str [greg]
+  (padded-str (inc (.get greg Calendar/MONTH))))
+
+(defn padded-str-for [greg field]
+  (padded-str (.get greg field)))
+
+(defn now-score 
+  ([now-greg]
+     (let [year (.get now-greg Calendar/YEAR)
+           month (month-str now-greg)
+           day (padded-str-for now-greg Calendar/DATE)
+           hour (padded-str-for now-greg Calendar/HOUR_OF_DAY)
+           minute (padded-str-for now-greg Calendar/MINUTE)
+           seconds (padded-str-for now-greg Calendar/SECOND)]
+       (apply str [year month day hour minute seconds])))
+  ([]
+     (now-score (GregorianCalendar.))))
 
 (defn score-date [score]
   (let [date (.parse (SimpleDateFormat. "yyyyMMddkkmmss") score)

@@ -139,14 +139,15 @@
       (ady :set-all! {:cid "ady" :merchant-id "15" :timezone "420"})
       (stubbing [now-score now-score-string]
         (ady :save!))
-      (is (ady :expired?))))
+      (is (ady :expired?))
+      (is (consumer :expired? "ady" "15"))))
 
   (deftest test-expiration-false
     (let [ady (consumer :new)]
       (ady :set-all! {:cid "ady" :merchant-id "15" :timezone "420"})
       (ady :save!)
-      (is (not (ady :expired?)))))
-
+      (is (not (ady :expired?))))
+      (is (not (consumer :expired? "ady" "15"))))
 
 ) ;; outer binding form
 

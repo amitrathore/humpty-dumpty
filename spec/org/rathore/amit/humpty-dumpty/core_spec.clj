@@ -67,7 +67,7 @@
     )
 
   (deftest test-persistable-for
-    (let [persistable (persistable-for adi)]
+    (let [persistable (persistable-for adi (adi :get-state))]
       (is (= (:key-type (persistable "abcdef___14___:cid")) :string-type))
       (is (= (:value (persistable "abcdef___14___:cid")) "\"abcdef\""))
       (is (= (:value (persistable "abcdef___14___:merchant-id")) "\"14\""))
@@ -112,6 +112,9 @@
       (is (= (new-adi :get :merchant-id) "14"))
       (is (= (new-adi :get :session-start-time) start-time))
       (is (= (new-adi :get :url-referrer) "google.com"))
+
+      (is (= (new-adi :get-all :cid :merchant-id :session-start-time) {:cid "abcdef" :merchant-id "14" :session-start-time start-time}))
+
       (is (= (count (new-adi :get :cart-items)) 2))
       (is (= (new-adi :get :cart-items) (apply list [item-2 item-1])))
       (is (= (new-adi :last-updated) now-score-date))))
@@ -149,9 +152,21 @@
       (is (not (ady :expired?))))
       (is (not (consumer :expired? "ady" "15"))))
 
+  (deftest test-update-field
+    (let [ady (consumer :new)]
+      (ady :set-all! {:cid "ady" :merchant-id "15" :timezone "480" :url-referrer "google.com"})
+      (ady :save!)
+      (let [new-adi (consumer :find "ady" "15")]
+        (is (= (new-adi :get :url-referrer) "google.com"))
+        (is (= (new-adi :get :timezone) "480"))
+        (new-adi :update-values! {:url-referrer "yahoo.com" :timezone "560"})
+        (let [newer-adi (consumer :find "ady" "15")]
+          (is (= (newer-adi :get :url-referrer) "yahoo.com"))
+          (is (= (newer-adi :get :timezone) "560"))))))
+
 ) ;; outer binding form
 
-;
+
 
 (defn run-humpty-dumpty-tests 
   ([]

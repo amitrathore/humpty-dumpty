@@ -57,17 +57,17 @@
 		     (= (v :key-type) :list-type) (doall (map #((inserters :list-type) k %) (v :value)))))]
     (doall (map inserter persistable))))
 
-(defn persistable-for [humpty]
+(defn persistable-for [humpty key-vals]
   (let [dumpty (humpty :type)
-	separator (dumpty :key-separator)
-	format (dumpty :format)
-	pk-value (humpty :primary-key-value)
-	kv-persister (fn [[k v]]
-		       (let [key-type (dumpty :key-type k)]
-			 {(str pk-value separator k) 
-			  {:value (serialize format key-type v)
-			   :key-type key-type}}))]
-    (apply merge (map kv-persister (humpty :get-state)))))
+        separator (dumpty :key-separator)
+        format (dumpty :format)
+        pk-value (humpty :primary-key-value)
+        kv-persister (fn [[k v]]
+                       (let [key-type (dumpty :key-type k)]
+                         {(str pk-value separator k) 
+                          {:value (serialize format key-type v)
+                           :key-type key-type}}))]
+    (apply merge (map kv-persister key-vals))))
 
 (defn validate-for-persistence [humpty]
   (if (empty? (humpty :primary-key-value))
@@ -75,11 +75,14 @@
 
 (declare stamp-update-time)
 
-(defn persist [humpty]
-  (validate-for-persistence humpty)
-  (let [ready-to-persist (persistable-for humpty)]
-    (insert-into-redis ready-to-persist))
-  (stamp-update-time humpty))
+(defn persist
+  ([humpty key-vals]
+     (validate-for-persistence humpty)
+     (let [ready-to-persist (persistable-for humpty key-vals)]
+       (insert-into-redis ready-to-persist))
+     (stamp-update-time humpty))
+  ([humpty]
+     (persist humpty (humpty :get-state))))
 
 (defn deserialize-state [serialized dumpty]
   (let [format (dumpty :format)

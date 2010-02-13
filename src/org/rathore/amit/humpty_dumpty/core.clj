@@ -50,9 +50,15 @@
 		 (dumpty :valid-key? k)
 		 (state k))
 
+          :get-all (apply merge (map (fn [k] {k (state k)}) args))
+
 	  :primary-key-value (primary-key-value thiz)
 
 	  :save! (persist thiz)
+
+          :update-values! (let [[key-vals] args]
+                            (thiz :set-all! key-vals)
+                            (persist thiz key-vals))
 
 	  :get-state @state
 

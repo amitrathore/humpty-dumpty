@@ -1,0 +1,3 @@
+[submodule "lib/clojure/redis-clojure"]
+	path = lib/clojure/redis-clojure
+	url = git://github.com/amitrathore/redis-clojure.git

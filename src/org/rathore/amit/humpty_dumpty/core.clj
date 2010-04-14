@@ -54,7 +54,9 @@
 
 	  :primary-key-value (primary-key-value thiz)
 
-	  :save! (persist thiz)
+	  :save! (do 
+                   (persist thiz)
+                   thiz)
 
           :update-values! (let [[key-vals] args]
                             (thiz :set-all! key-vals)

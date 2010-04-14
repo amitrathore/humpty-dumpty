@@ -39,6 +39,10 @@
     (is (= (consumer-json :format) :json))
     (is (= (consumer-json :key-separator) "***")))
 
+  (deftest test-validate-for-persistence
+    (let [new-consumer (consumer :new)]
+      (is (thrown? RuntimeException (validate-for-persistence new-consumer)))))
+
   (deftest test-dumpty-definition
     (is (ifn? consumer))
     (is (= (consumer :format) :clj-str))
@@ -55,6 +59,7 @@
   (deftest test-consumer-object
     (is (= (adi :type) consumer))
     (is (= (adi :primary-key-value) "abcdef___14"))
+    (is (= (adi :primary-key-values) ["abcdef" "14"]))
     (is (= (adi :get :cid) "abcdef"))
     (is (= (adi :get :merchant-id) "14"))
     (is (= (adi :get :session-start-time) start-time))
@@ -63,8 +68,7 @@
     (is (= (adi :get :cart-items) (apply list [item-2 item-1])))
 
     (is (thrown? RuntimeException (adi :set! :blah 123)))
-    (is (thrown? RuntimeException (adi :get :blah 123)))
-    )
+    (is (thrown? RuntimeException (adi :get :blah 123))))
 
   (deftest test-persistable-for
     (let [persistable (persistable-for adi (adi :get-state))]

@@ -8,11 +8,13 @@
 
 (def *redis-server-spec*)
 
+(defn primary-key-values [humpty-obj]
+  (let [pk-keys ((humpty-obj :type) :primary-key)]
+    (map #(humpty-obj :get %) pk-keys)))
+
 (defn primary-key-value [humpty-obj]
-  (let [pk-keys ((humpty-obj :type) :primary-key)
-	separator ((humpty-obj :type) :key-separator)
-	values (map #(humpty-obj :get %) pk-keys)]
-    (str-join separator values)))
+  (let [separator ((humpty-obj :type) :key-separator)]
+    (str-join separator (primary-key-values humpty-obj))))
 
 (defn new-humpty [dumpty]
   (let [state (ref {})]
@@ -51,6 +53,8 @@
 		 (state k))
 
           :get-all (apply merge (map (fn [k] {k (state k)}) args))
+
+	  :primary-key-values (primary-key-values thiz)
 
 	  :primary-key-value (primary-key-value thiz)
 

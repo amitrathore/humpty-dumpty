@@ -70,8 +70,9 @@
     (apply merge (map kv-persister key-vals))))
 
 (defn validate-for-persistence [humpty]
-  (if (empty? (humpty :primary-key-value))
-    (throw (RuntimeException. (str (humpty :type-name)) "must have a primary key value for persisting!"))))
+  (let [pk-values (humpty :primary-key-values)]
+    (if (every? empty? pk-values)
+      (throw (RuntimeException. (str (humpty :type-name) " must have a primary key value for persisting!"))))))
 
 (declare stamp-update-time)
 

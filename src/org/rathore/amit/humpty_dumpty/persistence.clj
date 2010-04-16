@@ -102,7 +102,7 @@
 	list-maps (apply merge (map #((fetchers :list-type) %) list-keys))
 	serialized (merge string-maps list-maps)
 	deserialized (deserialize-state serialized dumpty)]
-    (if (empty? deserialized)
+    (if (every? empty? (vals deserialized))
       nil
       (dumpty :new-with-state deserialized))))
 

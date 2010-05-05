@@ -16,10 +16,16 @@
 (defmethod serialize [:json :list-type] [format key-type value]
   (map json/encode-to-str value))
 
+(defmethod serialize [:json :map-type] [format key-type value]
+  (map json/encode-to-str value))
+
 (defmethod serialize [:clj-str :string-type] [format key-type value]
   (pr-str value))
 
 (defmethod serialize [:clj-str :list-type] [format key-type value]
+  (map pr-str value))
+
+(defmethod serialize [:clj-str :map-type] [format key-type value]
   (map pr-str value))
 
 
@@ -33,28 +39,38 @@
 (defmethod deserialize [:json :list-type] [format key-type serialized]
   (map json/decode-from-str serialized))
 
+(defmethod deserialize [:json :map-type] [format key-type serialized]
+  (map json/decode-from-str serialized))
+
 (defmethod deserialize [:clj-str :string-type] [format key-type serialized]
   (read-string serialized))
 
 (defmethod deserialize [:clj-str :list-type] [format key-type serialized]
   (map read-string serialized))
 
+(defmethod deserialize [:clj-str :map-type] [format key-type serialized]
+  (map read-string serialized))
+
 (def inserters {
   :string-type redis/set
   :list-type redis/rpush
+  :map-type redis/rpush
 })
 
 (def fetchers {
   :string-type (fn [key] 
 		 {key {:value (redis/get key) :key-type :string-type}})
   :list-type (fn [key]
-	       {key {:value (redis/lrange key 0 (redis/llen key)) :key-type :list-type}})})
+	       {key {:value (redis/lrange key 0 (redis/llen key)) :key-type :list-type}})
+  :map-type (fn [key]
+	       {key {:value (redis/lrange key 0 (redis/llen key)) :key-type :map-type}})})
 
 (defn insert-into-redis [persistable]
   (let [inserter (fn [[k v]]
 		   (cond
 		     (= (v :key-type) :string-type) ((inserters :string-type) k (v :value))
-		     (= (v :key-type) :list-type) (doall (map #((inserters :list-type) k %) (v :value)))))]
+		     (= (v :key-type) :list-type) (doall (map #((inserters :list-type) k %) (v :value)))
+                     (= (v :key-type) :list-type) (doall (map #((inserters :map-type) k %) (v :value)))))]
     (doall (map inserter persistable))))
 
 (defn persistable-for [humpty key-vals]

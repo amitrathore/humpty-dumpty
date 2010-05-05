@@ -76,23 +76,26 @@
 
           :expired? (humpty-expired? thiz))))))
 
-(defn key-type-for [key-name string-types list-types]
+(defn key-type-for [key-name string-types list-types map-types]
   (if (some #(= % key-name) string-types) 
     :string-type
     (if (some #(= % key-name) list-types)
-      :list-type)))
+      :list-type
+      (if (some #(= % key-name) map-types)
+        :map-type))))
 
 (defn keys-for [keys separator values]
   (let [pk-value (str-join separator values)]
     (map #(str pk-value separator %) keys)))
 
-(defn check-key-validity [key dumpty string-attribs list-attribs]
+(defn check-key-validity [key dumpty string-attribs list-attribs map-attribs]
   (if-not (some #(= % key) string-attribs)
     (if-not (some #(= % key) list-attribs)
-      (throw (RuntimeException. (str "Attempt to use unknown key " key " in object of humpty type " (dumpty :name))))))
+      (if-not (some #(= % key) map-attribs)
+        (throw (RuntimeException. (str "Attempt to use unknown key " key " in object of humpty type " (dumpty :name)))))))
   true)
 
-(defn new-dumpty [name separator format expires-in primary-keys string-attribs list-attribs]
+(defn new-dumpty [name separator format expires-in primary-keys string-attribs list-attribs map-attribs]
   (fn dumpty [accessor & args]
     (redis/with-server *redis-server-spec*
       (condp = accessor
@@ -108,16 +111,19 @@
 	:primary-key primary-keys
 
 	:key-type (let [[k] args]
-		    (key-type-for k string-attribs list-attribs))
+		    (key-type-for k string-attribs list-attribs map-attribs))
 
 	:valid-key? (let [[key] args]
-		      (check-key-validity key dumpty string-attribs list-attribs))
+		      (check-key-validity key dumpty string-attribs list-attribs map-attribs))
 
 	:string-keys (let [[values] args] 
 		       (keys-for string-attribs separator values))
 
 	:list-keys (let [[values] args]
 		     (keys-for list-attribs separator values))
+
+	:map-keys (let [[values] args]
+		     (keys-for map-attribs separator values))
 
 	:new (new-humpty dumpty)
 
@@ -148,9 +154,10 @@
 (defmacro defdumpty [name & specs]
   (let [string-types (specs-for 'string-type specs)
 	list-types (specs-for 'list-type specs)
+	map-types (specs-for 'map-type specs)
 	pk-keys (specs-for 'primary-key specs)
 	format (or (first (specs-for 'format-type specs)) :clj-str)
         expires-in (first (specs-for 'expires-in specs))
 	separator (or (first (specs-for 'key-separator specs)) "___")]
     `(def ~name 
-	  (new-dumpty '~name ~separator ~format (or ~expires-in 0) '~pk-keys '~string-types '~list-types))))
+	  (new-dumpty '~name ~separator ~format (or ~expires-in 0) '~pk-keys '~string-types '~list-types '~map-types))))

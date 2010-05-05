@@ -12,6 +12,7 @@
   (defdumpty consumer
     (string-type :cid :merchant-id :session-start-time :url-referrer :client-time :timezone)
     (list-type :cart-items)
+    (map-type :info)
     (primary-key :cid :merchant-id)
     (expires-in 1800))
   
@@ -34,6 +35,9 @@
   (def item-2 {:cost 22.40 :sku "RST"})
   (adi :add! :cart-items item-1)
   (adi :add! :cart-items item-2)
+
+  (def info {:name "adi" :age "6"})
+  (adi :set! :info info)
 
   (deftest test-override-spec
     (is (= (consumer-json :format) :json))

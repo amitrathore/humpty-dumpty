@@ -6,85 +6,6 @@
 
 (def LAST-ACCESSED-TIMES "last_accessed_times")
 
-;; serialization
-(defmulti serialize (fn [format key-type value]
-		      [format key-type]))
-
-(defmethod serialize [:json :string-type] [format key-type value]
-  (json/encode-to-str value))
-
-(defmethod serialize [:json :list-type] [format key-type value]
-  (map json/encode-to-str value))
-
-(defmethod serialize [:json :map-type] [format key-type value]
-  (map json/encode-to-str value))
-
-(defmethod serialize [:clj-str :string-type] [format key-type value]
-  (pr-str value))
-
-(defmethod serialize [:clj-str :list-type] [format key-type value]
-  (map pr-str value))
-
-(defmethod serialize [:clj-str :map-type] [format key-type value]
-  (map pr-str value))
-
-
-;; deserialization
-(defmulti deserialize (fn [format key-type serialized]
-			[format key-type]))
-
-(defmethod deserialize [:json :string-type] [format key-type serialized]
-  (json/decode-from-str serialized))
-
-(defmethod deserialize [:json :list-type] [format key-type serialized]
-  (map json/decode-from-str serialized))
-
-(defmethod deserialize [:json :map-type] [format key-type serialized]
-  (map json/decode-from-str serialized))
-
-(defmethod deserialize [:clj-str :string-type] [format key-type serialized]
-  (read-string serialized))
-
-(defmethod deserialize [:clj-str :list-type] [format key-type serialized]
-  (map read-string serialized))
-
-(defmethod deserialize [:clj-str :map-type] [format key-type serialized]
-  (map read-string serialized))
-
-(def inserters {
-  :string-type redis/set
-  :list-type redis/rpush
-  :map-type redis/rpush
-})
-
-(def fetchers {
-  :string-type (fn [key] 
-		 {key {:value (redis/get key) :key-type :string-type}})
-  :list-type (fn [key]
-	       {key {:value (redis/lrange key 0 (redis/llen key)) :key-type :list-type}})
-  :map-type (fn [key]
-	       {key {:value (redis/lrange key 0 (redis/llen key)) :key-type :map-type}})})
-
-(defn insert-into-redis [persistable]
-  (let [inserter (fn [[k v]]
-		   (cond
-		     (= (v :key-type) :string-type) ((inserters :string-type) k (v :value))
-		     (= (v :key-type) :list-type) (doall (map #((inserters :list-type) k %) (v :value)))
-                     (= (v :key-type) :list-type) (doall (map #((inserters :map-type) k %) (v :value)))))]
-    (doall (map inserter persistable))))
-
-(defn persistable-for [humpty key-vals]
-  (let [dumpty (humpty :type)
-        separator (dumpty :key-separator)
-        format (dumpty :format)
-        pk-value (humpty :primary-key-value)
-        kv-persister (fn [[k v]]
-                       (let [key-type (dumpty :key-type k)]
-                         {(str pk-value separator k) 
-                          {:value (serialize format key-type v)
-                           :key-type key-type}}))]
-    (apply merge (map kv-persister key-vals))))
-
 (defn validate-for-persistence [humpty]
   (let [pk-values (humpty :primary-key-values)]
     (if (every? empty? pk-values)
@@ -92,34 +13,36 @@
 
 (declare stamp-update-time)
 
+(defn serialize [format key-vals]
+  (condp = format
+    :json (json/encode-to-str key-vals)
+    :clj-str (pr-str key-vals)))
+
+(defn deserialize [format serialized]
+  (if-not serialized
+    {}
+    (condp = format
+      :json (json/decode-from-str serialized)
+      :clj-str (read-string serialized))))
+
+(defn insert-into-redis [pk-value format key-vals]
+  (let [seriazlized (serialize format key-vals)]
+    (redis/set pk-value seriazlized)))
+
 (defn persist
   ([humpty key-vals]
      (validate-for-persistence humpty)
-     (let [ready-to-persist (persistable-for humpty key-vals)]
-       (insert-into-redis ready-to-persist))
+     (let [d (humpty :type)]
+       (insert-into-redis (humpty :primary-key-value) (d :format) key-vals))
      (stamp-update-time humpty))
   ([humpty]
      (persist humpty (humpty :get-state))))
 
-(defn deserialize-state [serialized dumpty]
-  (let [format (dumpty :format)
-	separator (dumpty :key-separator)
-	key-from (fn [k] (read-string (last (.split k separator))))
-	deserializer (fn [[k {:keys [key-type value]}]]
-		       (if-not value
-			 {}
-			 {(key-from k) (deserialize format key-type value)}))]
-    (apply merge (map deserializer serialized))))
-
 (defn find-by-primary-key [dumpty pk-values]
-  (let [string-keys (dumpty :string-keys pk-values)
-	list-keys (dumpty :list-keys pk-values)
-	string-maps (apply merge (map #((fetchers :string-type) %) string-keys))
-	list-maps (apply merge (map #((fetchers :list-type) %) list-keys))
-	serialized (merge string-maps list-maps)
-	deserialized (deserialize-state serialized dumpty)]
-    (if (every? empty? (vals deserialized))
-      nil
+  (let [pk (str-join (dumpty :key-separator) pk-values)
+        serialized (redis/get pk)
+        deserialized (deserialize (dumpty :format) serialized)]
+    (if-not (empty? deserialized)
       (dumpty :new-with-state deserialized))))
 
 (defn stamp-update-time [humpty]
@@ -140,7 +63,6 @@
     (doseq [redis-key keys-for-humpty]
       (redis/del redis-key))
     (redis/zrem LAST-ACCESSED-TIMES redis-keys-prefix)))
-
 (defn- check-expiry [last-accessed ttl]
   (let [expires-at (add-seconds last-accessed ttl)
         now (score-date (now-score))]

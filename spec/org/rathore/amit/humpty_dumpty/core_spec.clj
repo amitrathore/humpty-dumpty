@@ -12,7 +12,7 @@
   (defdumpty consumer
     (string-type :cid :merchant-id :session-start-time :url-referrer :client-time :timezone)
     (list-type :cart-items)
-    (map-type :info)
+    (map-type :info )
     (primary-key :cid :merchant-id)
     (expires-in 1800))
   
@@ -36,7 +36,7 @@
   (adi :add! :cart-items item-1)
   (adi :add! :cart-items item-2)
 
-  (def info {:name "adi" :age "6"})
+  (def info {:name "adi" :age 6})
   (adi :set! :info info)
 
   (deftest test-override-spec
@@ -68,46 +68,23 @@
     (is (= (adi :get :merchant-id) "14"))
     (is (= (adi :get :session-start-time) start-time))
     (is (= (adi :get :url-referrer) "google.com"))
+    
     (is (= (count (adi :get :cart-items)) 2))
     (is (= (adi :get :cart-items) (apply list [item-2 item-1])))
+
+    (is (= (adi :get :info) info))
 
     (is (thrown? RuntimeException (adi :set! :blah 123)))
     (is (thrown? RuntimeException (adi :get :blah 123))))
 
-  (deftest test-persistable-for
-    (let [persistable (persistable-for adi (adi :get-state))]
-      (is (= (:key-type (persistable "abcdef___14___:cid")) :string-type))
-      (is (= (:value (persistable "abcdef___14___:cid")) "\"abcdef\""))
-      (is (= (:value (persistable "abcdef___14___:merchant-id")) "\"14\""))
-      (is (= (:value (persistable "abcdef___14___:session-start-time")) (str start-time)))
-      (is (= (:value (persistable "abcdef___14___:url-referrer")) "\"google.com\""))
-
-      (is (= (:key-type (persistable "abcdef___14___:cart-items")) :list-type))
-      (is (= (:value (persistable "abcdef___14___:cart-items")) '("{:cost 22.4, :sku \"RST\"}" "{:cost 10.95, :sku \"XYZ\"}")))))
-
-
-  (defn fetch-for-test [key-type key]
-    (:value (((fetchers key-type) key) key)))
-
+  
   (deftest test-copying-content
     (let [anya (consumer :new)]
       (anya :copy-from-humpty adi :cid :merchant-id)
       (is (= (adi :get :cid) (anya :get :cid)))
       (is (= (adi :get :merchant-id) (anya :get :merchant-id)))))
 
-  (deftest test-real-saving
-    (redis/flushdb)
-    (adi :save!)
-    (is (= (fetch-for-test :string-type "abcdef___14___:cid") "\"abcdef\""))
-    (is (= (fetch-for-test :string-type "abcdef___14___:merchant-id") "\"14\""))
-    (is (= (fetch-for-test :string-type "abcdef___14___:url-referrer") "\"google.com\""))
-    (is (= (fetch-for-test :string-type "abcdef___14___:session-start-time") (str start-time)))
-    (is (= (fetch-for-test :string-type "abcdef___14___:client-time") "\"1221231222\""))
-    (is (= (fetch-for-test :string-type "abcdef___14___:timezone") "\"480\""))
-    (is (= (fetch-for-test :list-type "abcdef___14___:cart-items") ["{:cost 22.4, :sku \"RST\"}" "{:cost 10.95, :sku \"XYZ\"}"]))
-    (is (consumer :exists? "abcdef" "14"))
-    (is (consumer :attrib-exists? :session-start-time "abcdef" "14")))
-
+  
   (def now-score-string "20100129164026")
   (def now-score-date (score-date now-score-string))
 
@@ -125,6 +102,9 @@
 
       (is (= (count (new-adi :get :cart-items)) 2))
       (is (= (new-adi :get :cart-items) (apply list [item-2 item-1])))
+
+      (is (= (new-adi :get :info) info))
+
       (is (= (new-adi :last-updated) now-score-date))))
 
   (deftest test-finding-nothing
@@ -138,7 +118,7 @@
       (ady :set-all! {:cid "ady" :merchant-id "15" :timezone "420"})
       (ady :save!)
       (is (not (nil? (consumer :find "ady" "15"))))
-      (is (= (count (redis/keys "*")) (+ 3 number-keys)))
+      (is (= (count (redis/keys "*")) (+ 1 number-keys)))
       (is (not (nil? (redis/zscore LAST-ACCESSED-TIMES "ady___15"))))
       (consumer :destroy "ady" "15")
       (is (nil? (consumer :find "ady" "15")))
@@ -167,10 +147,11 @@
       (let [new-adi (consumer :find "ady" "15")]
         (is (= (new-adi :get :url-referrer) "google.com"))
         (is (= (new-adi :get :timezone) "480"))
-        (new-adi :update-values! {:url-referrer "yahoo.com" :timezone "560"})
+        (new-adi :update-values! {:url-referrer "yahoo.com" :timezone "560"  :info {:name "ady"}})
         (let [newer-adi (consumer :find "ady" "15")]
           (is (= (newer-adi :get :url-referrer) "yahoo.com"))
-          (is (= (newer-adi :get :timezone) "560"))))))
+          (is (= (newer-adi :get :timezone) "560"))
+          (is (= (newer-adi :get :info) {:name "ady"}))))))
 
 ) ;; outer binding form
 

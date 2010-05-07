@@ -1,5 +1,5 @@
 (ns org.rathore.amit.humpty-dumpty.core-spec
-  (:use [clojure.test :only [run-tests deftest is]])
+  (:use [clojure.test :only [run-tests deftest is testing]])
   (:use org.rathore.amit.humpty-dumpty.core)
   (:use org.rathore.amit.humpty-dumpty.persistence)
   (:use org.rathore.amit.humpty-dumpty.utils)
@@ -133,6 +133,16 @@
       (is (ady :expired?))
       (is (consumer :expired? "ady" "15"))))
 
+  (deftest test-exists
+    (testing "should return true when it is present"
+      (let [ady (consumer :new)]
+        (ady :set-all! {:cid "ady" :merchant-id "15"})
+        (ady :save!)
+        (is (consumer :exists? "ady" "15")))
+      (consumer :destroy "ady" "15"))
+    (testing "should return false when it is not present"
+      (is (not (consumer :exists? "ady" "15")))))
+
   (deftest test-expiration-false
     (let [ady (consumer :new)]
       (ady :set-all! {:cid "ady" :merchant-id "15" :timezone "420"})
@@ -149,6 +159,7 @@
         (is (= (new-adi :get :timezone) "480"))
         (new-adi :update-values! {:url-referrer "yahoo.com" :timezone "560"  :info {:name "ady"}})
         (let [newer-adi (consumer :find "ady" "15")]
+          (is (= (newer-adi :get :cid) "ady"))
           (is (= (newer-adi :get :url-referrer) "yahoo.com"))
           (is (= (newer-adi :get :timezone) "560"))
           (is (= (newer-adi :get :info) {:name "ady"}))))))

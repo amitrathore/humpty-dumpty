@@ -64,7 +64,7 @@
 
           :update-values! (let [[key-vals] args]
                             (thiz :set-all! key-vals)
-                            (persist thiz key-vals))
+                            (persist thiz))
 
 	  :get-state @state
 
@@ -134,9 +134,8 @@
 
 	:find (find-by-primary-key dumpty args)
 
-	:exists? (let [key-value (str-join separator args)
-                       key-value (str key-value separator (first primary-keys))]
-		  (redis/exists key-value))
+	:exists? (let [pk-key (str-join separator args)]
+		  (redis/exists pk-key))
 
         :expired? (dumpty-expired? dumpty args)
 

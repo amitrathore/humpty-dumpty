@@ -19,62 +19,61 @@
 (defn new-humpty [dumpty]
   (let [state (ref {})]
     (fn thiz [accessor & args]
-      (redis/with-server *redis-server-spec*
-	(condp = accessor
+      (condp = accessor
 
-	  :type dumpty
+        :type dumpty
 
-          :type-name (dumpty :name)
+        :type-name (dumpty :name)
 
-	  :set! (let [[k v] args] 
-		  (dumpty :valid-key? k)
-		  (dosync
-		   (alter state assoc k v))
-		  v)
+        :set! (let [[k v] args] 
+                (dumpty :valid-key? k)
+                (dosync
+                 (alter state assoc k v))
+                v)
 
-	  :set-all! (let [[kv-map] args]
-		      (doseq [kv kv-map]
-			(let [[k v] kv]
-			  (thiz :set! k v))))
+        :set-all! (let [[kv-map] args]
+                    (doseq [kv kv-map]
+                      (let [[k v] kv]
+                        (thiz :set! k v))))
 
-	  :copy-from-humpty (let [from (first args)
-				  attribs (rest args)]
-			      (doseq [attrib attribs]
-				(thiz :set! attrib (from :get attrib))))
+        :copy-from-humpty (let [from (first args)
+                                attribs (rest args)]
+                            (doseq [attrib attribs]
+                              (thiz :set! attrib (from :get attrib))))
 
-	  :add! (let [[k v] args
-		      add-to-inner-list (fn [current-state ke valu] 
-					  (update-in current-state [ke] conj valu))]
-		  (dosync
-		   (alter state add-to-inner-list k v)))
+        :add! (let [[k v] args
+                    add-to-inner-list (fn [current-state ke valu] 
+                                        (update-in current-state [ke] conj valu))]
+                (dosync
+                 (alter state add-to-inner-list k v)))
 
-	  :get (let [[k] args]
-		 (dumpty :valid-key? k)
-		 (state k))
+        :get (let [[k] args]
+               (dumpty :valid-key? k)
+               (state k))
 
-          :get-all (apply merge (map (fn [k] {k (state k)}) args))
+        :get-all (apply merge (map (fn [k] {k (state k)}) args))
 
-	  :primary-key-values (primary-key-values thiz)
+        :primary-key-values (primary-key-values thiz)
 
-	  :primary-key-value (primary-key-value thiz)
+        :primary-key-value (primary-key-value thiz)
 
-	  :save! (do 
-                   (persist thiz)
-                   thiz)
+        :save! (do 
+                 (persist thiz)
+                 thiz)
 
-          :update-values! (let [[key-vals] args]
-                            (thiz :set-all! key-vals)
-                            (persist thiz))
+        :update-values! (let [[key-vals] args]
+                          (thiz :set-all! key-vals)
+                          (persist thiz))
 
-	  :get-state @state
+        :get-state @state
 
-	  :replace-state (let [[new-state] args] 
-			   (dosync
-			    (ref-set state new-state)))
+        :replace-state (let [[new-state] args] 
+                         (dosync
+                          (ref-set state new-state)))
 
-          :last-updated (get-last-updated thiz)
+        :last-updated (get-last-updated thiz)
 
-          :expired? (humpty-expired? thiz))))))
+        :expired? (humpty-expired? thiz)))))
 
 (defn key-type-for [key-name string-types list-types map-types]
   (if (some #(= % key-name) string-types) 
@@ -97,53 +96,52 @@
 
 (defn new-dumpty [name separator format expires-in primary-keys string-attribs list-attribs map-attribs]
   (fn dumpty [accessor & args]
-    (redis/with-server *redis-server-spec*
-      (condp = accessor
+    (condp = accessor
 
-	:name name
+      :name name
 
-	:format format
+      :format format
 
-        :ttl expires-in
+      :ttl expires-in
 
-	:key-separator separator
+      :key-separator separator
 
-	:primary-key primary-keys
+      :primary-key primary-keys
 
-	:key-type (let [[k] args]
-		    (key-type-for k string-attribs list-attribs map-attribs))
+      :key-type (let [[k] args]
+                  (key-type-for k string-attribs list-attribs map-attribs))
 
-	:valid-key? (let [[key] args]
-		      (check-key-validity key dumpty string-attribs list-attribs map-attribs))
+      :valid-key? (let [[key] args]
+                    (check-key-validity key dumpty string-attribs list-attribs map-attribs))
 
-	:string-keys (let [[values] args] 
-		       (keys-for string-attribs separator values))
+      :string-keys (let [[values] args] 
+                     (keys-for string-attribs separator values))
 
-	:list-keys (let [[values] args]
-		     (keys-for list-attribs separator values))
+      :list-keys (let [[values] args]
+                   (keys-for list-attribs separator values))
 
-	:map-keys (let [[values] args]
-		     (keys-for map-attribs separator values))
+      :map-keys (let [[values] args]
+                  (keys-for map-attribs separator values))
 
-	:new (new-humpty dumpty)
+      :new (new-humpty dumpty)
 
-	:new-with-state (let [[new-state] args
-			      nh (new-humpty dumpty)]
-			  (nh :replace-state new-state)
-			  nh)
+      :new-with-state (let [[new-state] args
+                            nh (new-humpty dumpty)]
+                        (nh :replace-state new-state)
+                        nh)
 
-	:find (find-by-primary-key dumpty args)
+      :find (find-by-primary-key dumpty args)
 
-	:exists? (let [pk-key (str-join separator args)]
-		  (redis/exists pk-key))
+      :exists? (let [pk-key (str-join separator args)]
+                 (redis/exists pk-key))
 
-        :expired? (dumpty-expired? dumpty args)
+      :expired? (dumpty-expired? dumpty args)
 
-	:attrib-exists? (let [attrib-key (first args)
-			      pk-value (str-join separator (rest args))]
-			  (redis/exists (str pk-value separator attrib-key)))
+      :attrib-exists? (let [attrib-key (first args)
+                            pk-value (str-join separator (rest args))]
+                        (redis/exists (str pk-value separator attrib-key)))
 
-        :destroy (destroy-by-primary-key dumpty args)))))
+      :destroy (destroy-by-primary-key dumpty args))))
 
 (defn specs-for [redis-datatype specs]
   (let [type-spec? #(= redis-datatype (first %))

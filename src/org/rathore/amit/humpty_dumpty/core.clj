@@ -6,8 +6,6 @@
   (use clojure.contrib.str-utils)
   (use org.rathore.amit.humpty-dumpty.persistence))
 
-(def *redis-server-spec*)
-
 (defn primary-key-values [humpty-obj]
   (let [pk-keys ((humpty-obj :type) :primary-key)]
     (map #(humpty-obj :get %) pk-keys)))

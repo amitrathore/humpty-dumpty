@@ -7,9 +7,7 @@
 
 (def redis-server-spec {:host "127.0.0.1" :db 8})
 
-(binding [*redis-server-spec* redis-server-spec]
-
-  (defdumpty consumer
+(defdumpty consumer
     (string-type :cid :merchant-id :session-start-time :url-referrer :client-time :timezone)
     (list-type :cart-items)
     (map-type :info )
@@ -164,15 +162,11 @@
           (is (= (newer-adi :get :timezone) "560"))
           (is (= (newer-adi :get :info) {:name "ady"}))))))
 
-) ;; outer binding form
-
 
 
 (defn run-humpty-dumpty-tests 
   ([]
-     (binding [*redis-server-spec* redis-server-spec]
-       (redis/with-server redis-server-spec (run-tests))))
+     (redis/with-server redis-server-spec (run-tests)))
   ([test-fn]
-     (binding [*redis-server-spec* redis-server-spec]
-       (redis/with-server redis-server-spec (test-fn))))) 
+     (redis/with-server redis-server-spec (test-fn)))) 
 

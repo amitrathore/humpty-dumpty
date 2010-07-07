@@ -11,8 +11,7 @@
     (string-type :cid :merchant-id :session-start-time :url-referrer :client-time :timezone)
     (list-type :cart-items)
     (map-type :info )
-    (primary-key :cid :merchant-id)
-    (expires-in 1800))
+    (primary-key :cid :merchant-id))
   
   (defdumpty consumer-json
     (format-type :json)
@@ -101,9 +100,7 @@
       (is (= (count (new-adi :get :cart-items)) 2))
       (is (= (new-adi :get :cart-items) (apply list [item-2 item-1])))
 
-      (is (= (new-adi :get :info) info))
-
-      (is (= (new-adi :last-updated) now-score-date))))
+      (is (= (new-adi :get :info) info))))
 
   (deftest test-finding-nothing
     (let [new-adi (consumer :find "blah" "deblah")]
@@ -117,19 +114,9 @@
       (ady :save!)
       (is (not (nil? (consumer :find "ady" "15"))))
       (is (= (count (redis/keys "*")) (+ 1 number-keys)))
-      (is (not (nil? (redis/zscore LAST-ACCESSED-TIMES "ady___15"))))
       (consumer :destroy "ady" "15")
       (is (nil? (consumer :find "ady" "15")))
-      (is (= (count (redis/keys "*")) number-keys))
-      (is (nil? (redis/zscore LAST-ACCESSED-TIMES "ady___15")))))
-
-  (deftest test-expiration-true
-    (let [ady (consumer :new)]
-      (ady :set-all! {:cid "ady" :merchant-id "15" :timezone "420"})
-      (stubbing [now-score now-score-string]
-        (ady :save!))
-      (is (ady :expired?))
-      (is (consumer :expired? "ady" "15"))))
+      (is (= (count (redis/keys "*")) number-keys))))
 
   (deftest test-exists
     (testing "should return true when it is present"
@@ -140,13 +127,6 @@
       (consumer :destroy "ady" "15"))
     (testing "should return false when it is not present"
       (is (not (consumer :exists? "ady" "15")))))
-
-  (deftest test-expiration-false
-    (let [ady (consumer :new)]
-      (ady :set-all! {:cid "ady" :merchant-id "15" :timezone "420"})
-      (ady :save!)
-      (is (not (ady :expired?))))
-      (is (not (consumer :expired? "ady" "15"))))
 
   (deftest test-update-field
     (let [ady (consumer :new)]

@@ -67,11 +67,7 @@
 
         :replace-state (let [[new-state] args] 
                          (dosync
-                          (ref-set state new-state)))
-
-        :last-updated (get-last-updated thiz)
-
-        :expired? (humpty-expired? thiz)))))
+                          (ref-set state new-state)))))))
 
 (defn key-type-for [key-name string-types list-types map-types]
   (if (some #(= % key-name) string-types) 
@@ -92,15 +88,13 @@
         (throw (RuntimeException. (str "Attempt to use unknown key " key " in object of humpty type " (dumpty :name)))))))
   true)
 
-(defn new-dumpty [name separator format expires-in primary-keys string-attribs list-attribs map-attribs]
+(defn new-dumpty [name separator format primary-keys string-attribs list-attribs map-attribs]
   (fn dumpty [accessor & args]
     (condp = accessor
 
       :name name
 
       :format format
-
-      :ttl expires-in
 
       :key-separator separator
 
@@ -133,8 +127,6 @@
       :exists? (let [pk-key (str-join separator args)]
                  (redis/exists pk-key))
 
-      :expired? (dumpty-expired? dumpty args)
-
       :attrib-exists? (let [attrib-key (first args)
                             pk-value (str-join separator (rest args))]
                         (redis/exists (str pk-value separator attrib-key)))
@@ -152,7 +144,6 @@
 	map-types (specs-for 'map-type specs)
 	pk-keys (specs-for 'primary-key specs)
 	format (or (first (specs-for 'format-type specs)) :clj-str)
-        expires-in (first (specs-for 'expires-in specs))
 	separator (or (first (specs-for 'key-separator specs)) "___")]
     `(def ~name 
-	  (new-dumpty '~name ~separator ~format (or ~expires-in 0) '~pk-keys '~string-types '~list-types '~map-types))))
+	  (new-dumpty '~name ~separator ~format '~pk-keys '~string-types '~list-types '~map-types))))

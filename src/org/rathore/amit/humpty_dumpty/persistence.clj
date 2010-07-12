@@ -4,7 +4,7 @@
   (:use clojure.contrib.str-utils)
   (:require (org.danlarkin [json :as json])))
 
-(def *EXPIRE-AFTER-MILLIS* (* 1000 60 60))
+(def *EXPIRE-AFTER-SECONDS* (* 60 60))
 
 (defn validate-for-persistence [humpty]
   (let [pk-values (humpty :primary-key-values)]
@@ -26,7 +26,7 @@
 (defn insert-into-redis [pk-value format key-vals]
   (let [seriazlized (serialize format key-vals)]
     (redis/set pk-value seriazlized)
-    (redis/expire pk-value *EXPIRE-AFTER-MILLIS*)))
+    (redis/expire pk-value *EXPIRE-AFTER-SECONDS*)))
 
 (defn persist
   ([humpty key-vals]
